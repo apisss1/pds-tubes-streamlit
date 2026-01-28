@@ -15,7 +15,7 @@ st.title("Dashboard Analisis Data OSN SMA Tahun 2022 - 2024")
 
 #Read Data Function
 def load_data():
-    return pd.read_csv("data/osn_sorted.csv")
+    return pd.read_csv("data/osn_fiks.csv")
 df = load_data()
 
 #Column section
@@ -114,7 +114,7 @@ def Pie_Data(tahun , provinsi , df):
 def Map_Data(tahun, provinsi, df):
     import copy
     
-    #
+    #filtering data 
     filter_df = df.copy()
     if tahun:
         filter_df = filter_df[filter_df["Tahun"].isin(tahun)]
@@ -122,7 +122,7 @@ def Map_Data(tahun, provinsi, df):
         st.warning("Tidak ada data untuk ditampilkan di peta.")
         return
 
-    #
+    #normalize section
     def normalize(nama):
         if not isinstance(nama, str):
             return ""
@@ -133,7 +133,7 @@ def Map_Data(tahun, provinsi, df):
             nama = nama.replace(k, "")
 
         nama = " ".join(nama.split()) #
-        # 
+        # normalisasi khusus
         if "jakarta" in nama:
             return "dki jakarta"
         if "yogyakarta" in nama:
@@ -142,7 +142,7 @@ def Map_Data(tahun, provinsi, df):
             return "bangka belitung"
         return nama
     
-    #
+    #agregasi data
     agg_data = (
         filter_df
         .groupby("Provinsi")
@@ -154,11 +154,13 @@ def Map_Data(tahun, provinsi, df):
         .reset_index()
     )
 
+    #dictionary data
     data_dict = {
     normalize(row["Provinsi"]): row
     for _, row in agg_data.iterrows()
     }
-    #
+
+    #read map data
     geojson_path = os.path.join("data", "indonesia.geojson")
 
     try:
@@ -168,11 +170,10 @@ def Map_Data(tahun, provinsi, df):
         st.error(f"Gagal memuat peta: {e}")
         return
 
-    #
+    #copy map data
     geojson_data = copy.deepcopy(geojson_original)
 
-
-    #
+    #filtering map data
     if provinsi:
         prov_norm = [normalize(p) for p in provinsi]
 
