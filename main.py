@@ -4,7 +4,6 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import folium
-from streamlit_folium import st_folium
 import json
 import os
 
@@ -248,11 +247,15 @@ def Map_Data(tahun, provinsi, df):
 
     geo_layer.add_to(m)
 
+    #
     if provinsi and geojson_data["features"]:
         m.fit_bounds(geo_layer.get_bounds())
 
-
-    st_folium(m, width=1000, height=500)
+    #
+    st.components.v1.html(
+    m._repr_html_(),
+    height=550,
+    scrolling=False)
 
 
 #Main Program 
