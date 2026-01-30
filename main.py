@@ -4,8 +4,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import folium
-import json
-import os
+
 
 #Set Layout Page
 st.set_page_config(layout='wide' , initial_sidebar_state= 'expanded')
@@ -198,28 +197,6 @@ def Map_Data(tahun, provinsi, df):
             aliases=["Provinsi:", "Total Peserta:", "Bidang Unggulan:", "Bidang Terlemah:"]
         )
     ).add_to(m)
-
-    # Marker Section
-    for feature in geojson_data["features"]:
-        lon, lat = feature["geometry"]["coordinates"]
-        nama = feature["properties"]["Provinsi"]
-
-        folium.Marker(
-            location=[lat, lon],
-            icon=folium.DivIcon(
-                html=f"""
-                <div style="
-                    font-size: 9px;
-                    font-weight: bold;
-                    color: black;
-                    text-align: center;
-                    text-shadow: 1px 1px 2px white;
-                ">
-                    {nama}
-                </div>
-                """
-            )
-        ).add_to(m)
         
     #Render Streamlit
     st.components.v1.html(
