@@ -112,45 +112,53 @@ def Pie_Data(tahun , provinsi , df):
 
 #Map Section
 def Map_Data(tahun, provinsi, df):
+    import json
+
     # ================= FILTER DATA =================
     filter = df.copy()
-    t = " - ".join(map(str, tahun))
-    p = " , ".join(provinsi)
 
-    if tahun and provinsi:
-        filter = filter[
-            (filter["Tahun"].isin(tahun)) &
-            (filter["Provinsi"].isin(provinsi))
-        ]
-        st.success(f"Data dari Provinsi {p} Tahun {t}")
+    if tahun and print :
+        filter = filter[filter["Tahun"].isin(tahun)] & filter = filter[filter["Provinsi"].isin(provinsi)]
     elif tahun:
         filter = filter[filter["Tahun"].isin(tahun)]
-        st.success(f"Data Tahun {t}")
     elif provinsi:
         filter = filter[filter["Provinsi"].isin(provinsi)]
-        st.success(f"Data Provinsi {p}")
-
+        
     if filter.empty:
         st.warning("Tidak ada data untuk ditampilkan di peta.")
         return
 
     # ================= AGREGASI =================
-    agg_data = filter.groupby("Provinsi").agg(
-        Jumlah_Peserta=("Provinsi", "count"),
-        Bidang_Unggulan=("Bidang", lambda x: x.mode().iloc[0]),
-        Bidang_Terlemah=("Bidang", lambda x: x.value_counts().idxmin()),
-        Latitude=("Latitude", "first"),
-        Longitude=("Longitude", "first")
-    ).reset_index()
+    agg_data = filter.groupby("Provinsi").size().reset_index(name="Jumlah_Peserta")
 
-    # ================= FUNGSI WARNA =================
-    def color(jumlah):
+    # ================= LOAD GEOJSON =================
+    with open("data/indonesia_province.geojson", encoding="utf-8") as f:
+        geojson_data = json.load(f)
+
+    # ================= JOIN DATA =================
+    peserta_map = dict(zip(agg_data["Provinsi"], agg_data["Jumlah_Peserta"]))
+
+    def get_jumlah(feature):
+        nama = feature["properties"]["NAME_1"]
+        return peserta_map.get(nama, 0)
+
+    def style_function(feature):
+        jumlah = get_jumlah(feature)
         if jumlah >= 100:
-            return "red"
+            warna = "red"
         elif jumlah >= 50:
-            return "orange"
+            warna = "orange"
+        elif jumlah > 0:
+            warna = "green"
         else:
-            return "green"
+            warna = "#dddddd"
+
+        return {
+            "fillColor": warna,
+            "color": "black",
+            "weight": 0.8,
+            "fillOpacity": 0.8
+        }
 
     # ================= MAP =================
     m = folium.Map(
@@ -159,30 +167,16 @@ def Map_Data(tahun, provinsi, df):
         tiles="CartoDB positron"
     )
 
-    # ================= TITIK BERWARNA =================
-    for _, row in agg_data.iterrows():
-        folium.CircleMarker(
-            location=[row["Latitude"], row["Longitude"]],
-            radius=10,
-            color=color(row["Jumlah_Peserta"]),
-            fill=True,
-            fill_color=color(row["Jumlah_Peserta"]),
-            fill_opacity=0.8,
-            tooltip=f"""
-            <b>{row['Provinsi']}</b><br>
-            Jumlah Peserta: {row['Jumlah_Peserta']}<br>
-            Bidang Unggulan: {row['Bidang_Unggulan']}<br>
-            Bidang Terlemah: {row['Bidang_Terlemah']}
-            """
-        ).add_to(m)
+    folium.GeoJson(
+        geojson_data,
+        style_function=style_function,
+        tooltip=folium.GeoJsonTooltip(
+            fields=["NAME_1"],
+            aliases=["Provinsi:"]
+        )
+    ).add_to(m)
 
-    # ================= RENDER =================
-    st.components.v1.html(
-        m._repr_html_(),
-        height=550,
-        scrolling=False
-    )
-
+    st.components.v1.html(m._repr_html_(), height=550)
 
 #Main Program 
 st.subheader("Data Siswa OSN")
