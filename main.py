@@ -5,6 +5,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import folium
 import json
+import os
 
 #Set Layout Page
 st.set_page_config(layout='wide' , initial_sidebar_state= 'expanded')
@@ -141,79 +142,69 @@ def Map_Data(tahun, provinsi, df):
         Latitude=("Latitude", "first"),
         Longitude=("Longitude", "first")
     ).reset_index()
+    
+    features = []
 
-    data_map = agg_data.set_index("Provinsi").to_dict("index")
+    for _, row in agg_data.iterrows():
+        #Information Feature
+        features.append({
+            "type": "Feature",
+            "properties": {
+                "Provinsi": row["Provinsi"],
+                "jumlah_peserta": int(row["Jumlah_Peserta"]),
+                "bidang_unggulan": row["Bidang_Unggulan"],
+                "bidang_terlemah": row["Bidang_Terlemah"]
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [row["Longitude"], row["Latitude"]]
+            }
+        })
 
-    # ================= LOAD GEOJSON =================
-    with open("data/indonesia.geojson", encoding="utf-8") as f:
-        geo = json.load(f)
+    #GeoJSON Data
+    geojson_data = {
+        "type": "FeatureCollection",
+        "features": features
+    }
 
-    for feature in geo["features"]:
-        prov = feature["properties"].get("Provinsi")
-        if prov in data_map:
-            feature["properties"].update(data_map[prov])
-        else:
-            feature["properties"].update({
-                "jumlah_peserta": 0,
-                "bidang_unggulan": "-",
-                "bidang_terlemah": "-"
-            })
-
-    # ================= COLOR FUNCTION =================
-    def color(jumlah):
-        if jumlah >= 100:
-            return "#d73027"
-        elif jumlah >= 50:
-            return "#fc8d59"
-        elif jumlah > 0:
-            return "#fee08b"
-        else:
-            return "#eeeeee"
-
-    # ================= MAP =================
-    m = folium.Map(
-        location=[-2.5489, 118.0149],
-        zoom_start=5,
-        tiles="CartoDB positron"
-    )
-
+    #Set Map Size
+    m = folium.Map(location=[-2.5489, 118.0149],
+                    zoom_start=5,
+                    max_zoom=12,
+                    min_zoom=2,
+                    tiles="CartoDB positron")
+    
+    #Show Feature to Map
     folium.GeoJson(
-        geo,
-        name="Provinsi",
-        style_function=lambda f: {
-            "fillColor": color(f["properties"]["jumlah_peserta"]),
-            "color": "black",
-            "weight": 1,
-            "fillOpacity": 0.8
-        },
-        highlight_function=lambda f: {
-            "weight": 3,
-            "color": "blue"
-        },
+        geojson_data,
         tooltip=folium.GeoJsonTooltip(
             fields=["Provinsi", "jumlah_peserta", "bidang_unggulan", "bidang_terlemah"],
-            aliases=["Provinsi:", "Total Peserta:", "Bidang Unggulan:", "Bidang Terlemah:"],
-            sticky=True
+            aliases=["Provinsi:", "Total Peserta:", "Bidang Unggulan:", "Bidang Terlemah:"]
         )
     ).add_to(m)
 
-    # ================= MARKER NAMA =================
-    for _, row in agg_data.iterrows():
+    # Marker Section
+    for feature in geojson_data["features"]:
+        lon, lat = feature["geometry"]["coordinates"]
+        nama = feature["properties"]["Provinsi"]
+
         folium.Marker(
-            [row["Latitude"], row["Longitude"]],
+            location=[lat, lon],
             icon=folium.DivIcon(
                 html=f"""
                 <div style="
-                    font-size:9px;
-                    font-weight:bold;
-                    text-shadow:1px 1px 2px white;
+                    font-size: 9px;
+                    font-weight: bold;
+                    color: black;
+                    text-align: center;
+                    text-shadow: 1px 1px 2px white;
                 ">
-                    {row['Provinsi']}
+                    {nama}
                 </div>
                 """
             )
         ).add_to(m)
-
+        
     #Render Streamlit
     st.components.v1.html(
     m._repr_html_(),
