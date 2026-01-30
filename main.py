@@ -188,6 +188,15 @@ def Map_Data(tahun, provinsi, df):
         lon, lat = feature["geometry"]["coordinates"]
         nama = feature["properties"]["Provinsi"]
 
+        folium.Polygon(
+            location = [lat , lon],
+            color = "green",
+            radius= 4 ,
+            fill = True,
+            fill_color = "green",
+            fill_opacity = 1
+        ).add_to(m)
+
         folium.Marker(
             location=[lat, lon],
             icon=folium.DivIcon(
