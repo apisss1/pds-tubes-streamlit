@@ -112,82 +112,68 @@ def Pie_Data(tahun , provinsi , df):
     plt.close(fig2)
 
 def Map_Data(tahun, provinsi, df):
-    #Filter Data 
-    filter_df = df.copy()
+    #Filter Data
+    filter = df.copy()
+
+    if tahun and provinsi :
+        filter = filter [(filter["Tahun"].isin(tahun)) & (filter["Provinsi"].isin(provinsi))]
     if tahun:
         filter_df = filter_df[filter_df["Tahun"].isin(tahun)]
-    
+    if provinsi:
+        filter_df = filter_df[filter_df["Provinsi"].isin(provinsi)]
     if filter_df.empty:
         st.warning("Tidak ada data untuk ditampilkan di peta.")
         return
-    # Agregasi Data 
+
+    # Agregasi Data
     agg_data = filter_df.groupby("Provinsi").agg(
         Jumlah_Peserta=("Provinsi", "count"),
         Bidang_Unggulan=("Bidang", lambda x: x.mode()[0]),
-        Bidang_Terlemah=("Bidang", lambda x: x.value_counts().idxmin()),
         Latitude=("Latitude", "first"),
         Longitude=("Longitude", "first")
     ).reset_index()
-    
-    features = []
 
+    # Fungsi warna berdasarkan jumlah peserta
+    def get_color(jumlah):
+        if jumlah >= 100:
+            return "red"
+        elif jumlah >= 50:
+            return "orange"
+        else:
+            return "green"
+
+    # Base Map
+    m = folium.Map(
+        location=[-2.5489, 118.0149],
+        zoom_start=5,
+        tiles="CartoDB positron"
+    )
+
+    # Tambah titik berwarna
     for _, row in agg_data.iterrows():
-        features.append({
-            "type": "Feature",
-            "properties": {
-                "Provinsi": row["Provinsi"],
-                "jumlah_peserta": int(row["Jumlah_Peserta"]),
-                "bidang_unggulan": row["Bidang_Unggulan"],
-                "bidang_terlemah": row["Bidang_Terlemah"]
-            },
-            "geometry": {
-                "type": "Point",
-                "coordinates": [row["Longitude"], row["Latitude"]]
-            }
-        })
+        warna = get_color(row["Jumlah_Peserta"])
 
-    geojson_data = {
-        "type": "FeatureCollection",
-        "features": features
-    }
-    
-    m = folium.Map(location=[-2.5489, 118.0149], zoom_start=5,max_zoom=12,min_zoom=2, tiles="CartoDB positron")
-
-    folium.GeoJson(
-        geojson_data,
-        tooltip=folium.GeoJsonTooltip(
-            fields=["Provinsi", "jumlah_peserta", "bidang_unggulan", "bidang_terlemah"],
-            aliases=["Provinsi:", "Total Peserta:", "Bidang Unggulan:", "Bidang Terlemah:"]
-        )
-    ).add_to(m)
-
-    # ================= LABEL NAMA PROVINSI =================
-    for feature in geojson_data["features"]:
-        lon, lat = feature["geometry"]["coordinates"]
-        nama = feature["properties"]["Provinsi"]
-
-        folium.Marker(
-            location=[lat, lon],
-            icon=folium.DivIcon(
-                html=f"""
-                <div style="
-                    font-size: 9px;
-                    font-weight: bold;
-                    color: black;
-                    text-align: center;
-                    text-shadow: 1px 1px 2px white;
-                ">
-                    {nama}
-                </div>
-                """
-            )
+        folium.CircleMarker(
+            location=[row["Latitude"], row["Longitude"]],
+            radius=8,
+            color=warna,
+            fill=True,
+            fill_color=warna,
+            fill_opacity=0.7,
+            popup=f"""
+            <b>Provinsi:</b> {row['Provinsi']}<br>
+            <b>Total Peserta:</b> {row['Jumlah_Peserta']}<br>
+            <b>Bidang Unggulan:</b> {row['Bidang_Unggulan']}
+            """,
+            tooltip=row["Provinsi"]
         ).add_to(m)
 
-    #
+    # Render ke Streamlit
     st.components.v1.html(
-    m._repr_html_(),
-    height=550,
-    scrolling=False)
+        m._repr_html_(),
+        height=550,
+        scrolling=False
+    )
 
 
 #Main Program 
