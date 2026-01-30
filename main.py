@@ -118,12 +118,12 @@ def Map_Data(tahun, provinsi, df):
     filter = df.copy()
 
     if tahun and print :
-        filter = filter[filter["Tahun"].isin(tahun)] & filter = filter[filter["Provinsi"].isin(provinsi)]
+        filter = filter[filter["Tahun"].isin(tahun)] & filter[filter["Provinsi"].isin(provinsi)]
     elif tahun:
         filter = filter[filter["Tahun"].isin(tahun)]
     elif provinsi:
         filter = filter[filter["Provinsi"].isin(provinsi)]
-        
+
     if filter.empty:
         st.warning("Tidak ada data untuk ditampilkan di peta.")
         return
