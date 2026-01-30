@@ -168,11 +168,11 @@ def Map_Data(tahun, provinsi, df):
     # ================= COLOR FUNCTION =================
     def warna(jumlah):
         if jumlah >= 100:
-            return "#d73027"
+            return "#1feb0c"
         elif jumlah >= 50:
-            return "#fc8d59"
+            return "#f0ec0a"
         elif jumlah > 0:
-            return "#fee08b"
+            return "#ef0d0d"
         else:
             return "#eeeeee"
 
@@ -199,10 +199,14 @@ def Map_Data(tahun, provinsi, df):
         }
     ).add_to(m)
 
+    agg["Latitude"] = pd.to_numeric(agg["Latitude"], errors="coerce")
+    agg["Longitude"] = pd.to_numeric(agg["Longitude"], errors="coerce")
+    agg = agg.dropna(subset=["Latitude", "Longitude"])
+
     # ================= MARKER NAMA =================
     for _, row in agg.iterrows():
         folium.Marker(
-            [row["Latitude"], row["Longitude"]],
+            location = [row["Latitude"], row["Longitude"]],
             tooltip=(
                 f"Provinsi: {row['Provinsi']}<br>"
                 f"Peserta: {row['Jumlah_Peserta']}<br>"
