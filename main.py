@@ -188,7 +188,7 @@ def Map_Data(tahun, provinsi, df):
         geo,
         name="Provinsi",
         style_function=lambda f: {
-            "fillColor": warna(f["properties"]["jumlah_peserta"]),
+            "fillColor": warna(f["properties"].get("jumlah_peserta" , 0)),
             "color": "black",       # BORDER
             "weight": 2,
             "fillOpacity": 0.7
