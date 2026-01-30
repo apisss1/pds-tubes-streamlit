@@ -4,8 +4,6 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import folium
-import json
-import os
 
 #Set Layout Page
 st.set_page_config(layout='wide' , initial_sidebar_state= 'expanded')
@@ -167,15 +165,6 @@ def Map_Data(tahun, provinsi, df):
         "features": features
     }
 
-    #Map Colorbox
-    def color(jumlah):
-        if jumlah >= 100:
-            return "red"
-        elif jumlah >= 50:
-            return "orange"
-        else:
-            return "black"
-
     #Set Map Size
     m = folium.Map(location=[-2.5489, 118.0149],
                     zoom_start=5,
@@ -185,14 +174,8 @@ def Map_Data(tahun, provinsi, df):
     
     #Show Feature to Map
     folium.GeoJson(
-        geojson_data,
-        style_function=lambda feature: {
-        "fillColor": color(feature["properties"]["jumlah_peserta"]),
-        "color": color(feature["properties"]["jumlah_peserta"]),
-        "weight": 1,
-        "fillOpacity": 0.8,
-        "radius": 8
-        },
+        "data/indonesia.geojson",
+        name = "Indonesia",
         tooltip=folium.GeoJsonTooltip(
             fields=["Provinsi", "jumlah_peserta", "bidang_unggulan", "bidang_terlemah"],
             aliases=["Provinsi:", "Total Peserta:", "Bidang Unggulan:", "Bidang Terlemah:"]
