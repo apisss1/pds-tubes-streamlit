@@ -118,15 +118,15 @@ def Map_Data(tahun, provinsi, df):
     if tahun and provinsi :
         filter = filter [(filter["Tahun"].isin(tahun)) & (filter["Provinsi"].isin(provinsi))]
     if tahun:
-        filter_df = filter_df[filter_df["Tahun"].isin(tahun)]
+        filter = filter[filter["Tahun"].isin(tahun)]
     if provinsi:
-        filter_df = filter_df[filter_df["Provinsi"].isin(provinsi)]
-    if filter_df.empty:
+        filter = filter[filter["Provinsi"].isin(provinsi)]
+    if filter.empty:
         st.warning("Tidak ada data untuk ditampilkan di peta.")
         return
 
     # Agregasi Data
-    agg_data = filter_df.groupby("Provinsi").agg(
+    agg_data = filter.groupby("Provinsi").agg(
         Jumlah_Peserta=("Provinsi", "count"),
         Bidang_Unggulan=("Bidang", lambda x: x.mode()[0]),
         Latitude=("Latitude", "first"),
