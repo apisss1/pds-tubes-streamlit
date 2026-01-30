@@ -15,7 +15,7 @@ st.title("Dashboard Analisis Data OSN SMA Tahun 2022 - 2024")
 
 #Read Data Function
 def load_data():
-    return pd.read_csv("data/osn_fiks.csv")
+    return pd.read_csv("data/osn_fiks .csv")
 df = load_data()
 
 #Column section
@@ -112,145 +112,76 @@ def Pie_Data(tahun , provinsi , df):
     plt.close(fig2)
 
 def Map_Data(tahun, provinsi, df):
-    import copy
-    
-    #filtering data 
+    #Filter Data 
     filter_df = df.copy()
     if tahun:
         filter_df = filter_df[filter_df["Tahun"].isin(tahun)]
+    
     if filter_df.empty:
         st.warning("Tidak ada data untuk ditampilkan di peta.")
         return
-
-    #normalize section
-    def normalize(nama):
-        if not isinstance(nama, str):
-            return ""
-
-        nama = nama.lower().replace("-", " ").strip()
-        # hapus kata umum
-        for k in ["provinsi", "propinsi", "daerah", "raya", "istimewa", "kepulauan"]:
-            nama = nama.replace(k, "")
-
-        nama = " ".join(nama.split()) #
-        # normalisasi khusus
-        if "jakarta" in nama:
-            return "dki jakarta"
-        if "yogyakarta" in nama:
-            return "di yogyakarta"
-        if "bangka" in nama and "belitung" in nama:
-            return "bangka belitung"
-        return nama
+    # Agregasi Data 
+    agg_data = filter_df.groupby("Provinsi").agg(
+        Jumlah_Peserta=("Provinsi", "count"),
+        Bidang_Unggulan=("Bidang", lambda x: x.mode()[0]),
+        Bidang_Terlemah=("Bidang", lambda x: x.value_counts().idxmin()),
+        Latitude=("Latitude", "first"),
+        Longitude=("Longitude", "first")
+    ).reset_index()
     
-    #agregasi data
-    agg_data = (
-        filter_df
-        .groupby("Provinsi")
-        .agg(
-            Jumlah_Peserta=("Provinsi", "count"),
-            Bidang_Unggulan=("Bidang", lambda x: x.mode().iloc[0] if not x.mode().empty else "-"),
-            Bidang_Terlemah=("Bidang", lambda x: x.value_counts().idxmin() if not x.empty else "-")
-        )
-        .reset_index()
-    )
+    features = []
 
-    #dictionary data
-    data_dict = {
-    normalize(row["Provinsi"]): row
-    for _, row in agg_data.iterrows()
+    for _, row in agg_data.iterrows():
+        features.append({
+            "type": "Feature",
+            "properties": {
+                "Provinsi": row["Provinsi"],
+                "jumlah_peserta": int(row["Jumlah_Peserta"]),
+                "bidang_unggulan": row["Bidang_Unggulan"],
+                "bidang_terlemah": row["Bidang_Terlemah"]
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [row["Longitude"], row["Latitude"]]
+            }
+        })
+
+    geojson_data = {
+        "type": "FeatureCollection",
+        "features": features
     }
+    
+    m = folium.Map(location=[-2.5489, 118.0149], zoom_start=5,max_zoom=12,min_zoom=2, tiles="CartoDB positron")
 
-    #read map data
-    geojson_path = os.path.join("data", "indonesia.geojson")
-
-    try:
-        with open(geojson_path, "r", encoding="utf-8") as f:
-            geojson_original = json.load(f)
-    except Exception as e:
-        st.error(f"Gagal memuat peta: {e}")
-        return
-
-    #copy map data
-    geojson_data = copy.deepcopy(geojson_original)
-
-    #filtering map data
-    if provinsi:
-        prov_norm = [normalize(p) for p in provinsi]
-
-        geojson_data["features"] = [
-            f for f in geojson_data["features"]
-            if normalize(
-                f["properties"].get("state")
-                or f["properties"].get("name")
-                or f["properties"].get("Propinsi")
-            ) in prov_norm
-        ]
-
-        if not geojson_data["features"]:
-            st.warning("Provinsi tidak ditemukan di peta.")
-            return
-
-    for f in geojson_data["features"]:
-        p = f["properties"]
-
-        nama_peta = (
-            p.get("state")
-            or p.get("name")
-            or p.get("Propinsi")
-            or "Tidak Diketahui"
-        )
-
-        key = normalize(nama_peta)
-        d = data_dict.get(key)
-
-        if d is not None:
-            p.update({
-                "state": nama_peta,
-                "jumlah_peserta": int(d["Jumlah_Peserta"]),
-                "bidang_unggulan": d["Bidang_Unggulan"],
-                "bidang_terlemah": d["Bidang_Terlemah"],
-                "color_status": "ada"
-            })
-        else:
-            p.update({
-                "state": nama_peta,
-                "jumlah_peserta": 0,
-                "bidang_unggulan": "-",
-                "bidang_terlemah": "-",
-                "color_status": "kosong"
-            })
-
-    m = folium.Map(
-        location=[-2.5489, 118.0149],
-        zoom_start=5,
-        tiles="CartoDB positron"
-    )
-
-    geo_layer = folium.GeoJson(
+    folium.GeoJson(
         geojson_data,
-        style_function=lambda f: {
-            "fillColor": "#2a9d8f" if f["properties"]["color_status"] == "ada" else "#e9ecef",
-            "color": "white",
-            "weight": 1,
-            "fillOpacity": 0.7 if f["properties"]["color_status"] == "ada" else 0.4
-        },
         tooltip=folium.GeoJsonTooltip(
-            fields=["state", "jumlah_peserta", "bidang_unggulan", "bidang_terlemah"],
-            aliases=[
-                "Provinsi:",
-                "Total Peserta:",
-                "Bidang Unggulan:",
-                "Bidang Terlemah:"
-            ],
-            sticky=False
+            fields=["Provinsi", "jumlah_peserta", "bidang_unggulan", "bidang_terlemah"],
+            aliases=["Provinsi:", "Total Peserta:", "Bidang Unggulan:", "Bidang Terlemah:"]
         )
-    )
+    ).add_to(m)
 
-    geo_layer.add_to(m)
+    # ================= LABEL NAMA PROVINSI =================
+    for feature in geojson_data["features"]:
+        lon, lat = feature["geometry"]["coordinates"]
+        nama = feature["properties"]["Provinsi"]
 
-    #
-    if provinsi and geojson_data["features"]:
-        m.fit_bounds(geo_layer.get_bounds())
+        folium.Marker(
+            location=[lat, lon],
+            icon=folium.DivIcon(
+                html=f"""
+                <div style="
+                    font-size: 9px;
+                    font-weight: bold;
+                    color: black;
+                    text-align: center;
+                    text-shadow: 1px 1px 2px white;
+                ">
+                    {nama}
+                </div>
+                """
+            )
+        ).add_to(m)
 
     #
     st.components.v1.html(
@@ -260,11 +191,11 @@ def Map_Data(tahun, provinsi, df):
 
 
 #Main Program 
-st.subheader(f"Data Siswa OSN")
+st.subheader("Data Siswa OSN")
 Table_Data(tahun , provinsi , df)
-st.subheader("Grafik Bar")
+st.subheader("Grafik Jumlah total Peserta OSN 2022-2024 tiap Provinsi")
 Bar_Data(tahun , provinsi , df)
-st.subheader("Grafik Pie")
+st.subheader("Grafik Persentase tiap Bidang di Indonesia ")
 Pie_Data(tahun , provinsi , df)
 st.subheader("Peta Sebaran")
-Map_Data(tahun , provinsi , df)
+Map_Data(tahun, provinsi, df)
