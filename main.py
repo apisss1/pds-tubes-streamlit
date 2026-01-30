@@ -112,97 +112,77 @@ def Pie_Data(tahun , provinsi , df):
 
 #Map Section
 def Map_Data(tahun, provinsi, df):
-    #Filter Data 
+    # ================= FILTER DATA =================
     filter = df.copy()
-    t = " - ".join(map(str , tahun))
+    t = " - ".join(map(str, tahun))
     p = " , ".join(provinsi)
 
-    if tahun and provinsi :
-        filter = filter [(filter["Tahun"].isin(tahun)) & (filter["Provinsi"].isin(provinsi))]
+    if tahun and provinsi:
+        filter = filter[
+            (filter["Tahun"].isin(tahun)) &
+            (filter["Provinsi"].isin(provinsi))
+        ]
         st.success(f"Data dari Provinsi {p} Tahun {t}")
-    elif tahun : 
-        filter = filter [(filter["Tahun"].isin(tahun))]
+    elif tahun:
+        filter = filter[filter["Tahun"].isin(tahun)]
         st.success(f"Data Tahun {t}")
-    elif provinsi :
-        filter = filter [(filter["Provinsi"].isin(provinsi))]
+    elif provinsi:
+        filter = filter[filter["Provinsi"].isin(provinsi)]
         st.success(f"Data Provinsi {p}")
-        return
-        
-    #Checking Data
+
     if filter.empty:
         st.warning("Tidak ada data untuk ditampilkan di peta.")
         return
 
-    # Agregasi Data 
+    # ================= AGREGASI =================
     agg_data = filter.groupby("Provinsi").agg(
         Jumlah_Peserta=("Provinsi", "count"),
-        Bidang_Unggulan=("Bidang", lambda x: x.mode().iloc()[0]),
+        Bidang_Unggulan=("Bidang", lambda x: x.mode().iloc[0]),
         Bidang_Terlemah=("Bidang", lambda x: x.value_counts().idxmin()),
         Latitude=("Latitude", "first"),
         Longitude=("Longitude", "first")
     ).reset_index()
-    
-    features = []
 
-    for _, row in agg_data.iterrows():
-        #Information Feature
-        features.append({
-            "type": "Feature",
-            "properties": {
-                "Provinsi": row["Provinsi"],
-                "jumlah_peserta": int(row["Jumlah_Peserta"]),
-                "bidang_unggulan": row["Bidang_Unggulan"],
-                "bidang_terlemah": row["Bidang_Terlemah"]
-            },
-            "geometry": {
-                "type": "Point",
-                "coordinates": [row["Longitude"], row["Latitude"]]
-            }
-        })
-
-    #GeoJSON Data
-    geojson_data = {
-        "type": "FeatureCollection",
-        "features": features
-    }
-
-    #Map Colorbox
+    # ================= FUNGSI WARNA =================
     def color(jumlah):
         if jumlah >= 100:
             return "red"
         elif jumlah >= 50:
             return "orange"
         else:
-            return "black"
+            return "green"
 
-    #Set Map Size
-    m = folium.Map(location=[-2.5489, 118.0149],
-                    zoom_start=5,
-                    max_zoom=12,
-                    min_zoom=2,
-                    tiles="CartoDB positron")
-    
-    #Show Feature to Map
-    folium.GeoJson(
-        geojson_data,
-        style_function=lambda feature: {
-        "fillColor": color(feature["properties"]["jumlah_peserta"]),
-        "color": color(feature["properties"]["jumlah_peserta"]),
-        "weight": 1,
-        "fillOpacity": 0.8,
-        "radius": 8
-        },
-        tooltip=folium.GeoJsonTooltip(
-            fields=["Provinsi", "jumlah_peserta", "bidang_unggulan", "bidang_terlemah"],
-            aliases=["Provinsi:", "Total Peserta:", "Bidang Unggulan:", "Bidang Terlemah:"]
-        )
-    ).add_to(m)
-        
-    #Render Streamlit
+    # ================= MAP =================
+    m = folium.Map(
+        location=[-2.5489, 118.0149],
+        zoom_start=5,
+        tiles="CartoDB positron"
+    )
+
+    # ================= TITIK BERWARNA =================
+    for _, row in agg_data.iterrows():
+        folium.CircleMarker(
+            location=[row["Latitude"], row["Longitude"]],
+            radius=10,
+            color=color(row["Jumlah_Peserta"]),
+            fill=True,
+            fill_color=color(row["Jumlah_Peserta"]),
+            fill_opacity=0.8,
+            tooltip=f"""
+            <b>{row['Provinsi']}</b><br>
+            Jumlah Peserta: {row['Jumlah_Peserta']}<br>
+            Bidang Unggulan: {row['Bidang_Unggulan']}<br>
+            Bidang Terlemah: {row['Bidang_Terlemah']}
+            """
+        ).add_to(m)
+
+    # ================= RENDER =================
     st.components.v1.html(
-    m._repr_html_(),
-    height=550,
-    scrolling=False)
+        m._repr_html_(),
+        height=550,
+        scrolling=False
+    )
+
 
 #Main Program 
 st.subheader("Data Siswa OSN")
