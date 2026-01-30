@@ -15,7 +15,7 @@ st.title("Dashboard Analisis Data OSN SMA Tahun 2022 - 2024")
 
 #Read Data Function
 def load_data():
-    return pd.read_csv("data/osn_fiks .csv")
+    return pd.read_csv("data/osn_fiks.csv")
 df = load_data()
 
 #Column section
