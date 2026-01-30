@@ -118,6 +118,7 @@ def Map_Data(tahun, provinsi, df):
     t = " - ".join(map(str , tahun))
     p = " , ".join(provinsi)
 
+    #Selection Data
     if tahun and provinsi :
         filter = filter [(filter["Tahun"].isin(tahun)) & (filter["Provinsi"].isin(provinsi))]
         st.success(f"Data dari Provinsi {p} Tahun {t}")
@@ -135,7 +136,7 @@ def Map_Data(tahun, provinsi, df):
         return
 
     # Agregasi Data 
-    agg_data = filter.groupby("Provinsi").agg(
+    agg = filter.groupby("Provinsi").agg(
         Jumlah_Peserta=("Provinsi", "count"),
         Bidang_Unggulan=("Bidang", lambda x: x.mode().iloc()[0]),
         Bidang_Terlemah=("Bidang", lambda x: x.value_counts().idxmin()),
@@ -143,72 +144,78 @@ def Map_Data(tahun, provinsi, df):
         Longitude=("Longitude", "first")
     ).reset_index()
     
-    features = []
+    data_map = agg.set_index("Provinsi").to_dict("index")
+    daftar_provinsi = agg["Provinsi"].tolist()
 
-    for _, row in agg_data.iterrows():
-        #Information Feature
-        features.append({
-            "type": "Feature",
-            "properties": {
-                "Provinsi": row["Provinsi"],
-                "jumlah_peserta": int(row["Jumlah_Peserta"]),
-                "bidang_unggulan": row["Bidang_Unggulan"],
-                "bidang_terlemah": row["Bidang_Terlemah"]
-            },
-            "geometry": {
-                "type": "Point",
-                "coordinates": [row["Longitude"], row["Latitude"]]
-            }
-        })
+    # ================= LOAD GEOJSON =================
+    with open("data/indonesia.geojson", encoding="utf-8") as f:
+        geo = json.load(f)
 
-    #GeoJSON Data
-    geojson_data = {
-        "type": "FeatureCollection",
-        "features": features
-    }
+    # 🔥 INJECT PROPERTIES DARI CSV
+    for i, feature in enumerate(geo["features"]):
+        prov = daftar_provinsi[i] if i < len(daftar_provinsi) else "Unknown"
+        feature["properties"] = {"Provinsi": prov}
 
-    #Set Map Size
-    m = folium.Map(location=[-2.5489, 118.0149],
-                    zoom_start=5,
-                    max_zoom=12,
-                    min_zoom=2,
-                    tiles="CartoDB positron")
-    
-    #Show Feature to Map
+        if prov in data_map:
+            feature["properties"].update(data_map[prov])
+        else:
+            feature["properties"].update({
+                "jumlah_peserta": 0,
+                "bidang_unggulan": "-",
+                "bidang_terlemah": "-"
+            })
+
+    # ================= COLOR FUNCTION =================
+    def warna(jumlah):
+        if jumlah >= 100:
+            return "#d73027"
+        elif jumlah >= 50:
+            return "#fc8d59"
+        elif jumlah > 0:
+            return "#fee08b"
+        else:
+            return "#eeeeee"
+
+    # ================= MAP =================
+    m = folium.Map(
+        location=[-2.5489, 118.0149],
+        zoom_start=5,
+        tiles="CartoDB positron"
+    )
+
+    # ================= PROVINSI POLYGON =================
     folium.GeoJson(
-        geojson_data,
+        geo,
+        name="Provinsi",
+        style_function=lambda f: {
+            "fillColor": warna(f["properties"]["jumlah_peserta"]),
+            "color": "black",       # BORDER
+            "weight": 2,
+            "fillOpacity": 0.7
+        },
+        highlight_function=lambda f: {
+            "weight": 4,
+            "color": "blue"
+        },
         tooltip=folium.GeoJsonTooltip(
             fields=["Provinsi", "jumlah_peserta", "bidang_unggulan", "bidang_terlemah"],
-            aliases=["Provinsi:", "Total Peserta:", "Bidang Unggulan:", "Bidang Terlemah:"]
+            aliases=["Provinsi:", "Total Peserta:", "Bidang Unggulan:", "Bidang Terlemah:"],
+            sticky=True
         )
     ).add_to(m)
 
-    # Marker Section
-    for feature in geojson_data["features"]:
-        lon, lat = feature["geometry"]["coordinates"]
-        nama = feature["properties"]["Provinsi"]
-
-        folium.Polygon(
-            location = [lat , lon],
-            color = "green",
-            radius= 4 ,
-            fill = True,
-            fill_color = "green",
-            fill_opacity = 1
-        ).add_to(m)
-
+    # ================= MARKER NAMA =================
+    for _, row in agg.iterrows():
         folium.Marker(
-            location=[lat, lon],
+            [row["lat"], row["lon"]],
             icon=folium.DivIcon(
                 html=f"""
                 <div style="
-                    font-size: 9px;
-                    font-weight: bold;
-                    color: black;
-                    text-align: center;
-                    text-shadow: 1px 1px 2px white;
+                    font-size:9px;
+                    font-weight:bold;
+                    text-shadow:1px 1px 2px white;
                 ">
-                    {nama}
+                    {row['Provinsi']}
                 </div>
                 """
             )
