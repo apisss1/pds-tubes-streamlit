@@ -207,7 +207,7 @@ def Map_Data(tahun, provinsi, df):
     # ================= MARKER NAMA =================
     for _, row in agg.iterrows():
         folium.Marker(
-            [row["latitude"], row["longitude"]],
+            [row["Latitude"], row["Longitude"]],
             icon=folium.DivIcon(
                 html=f"""
                 <div style="
