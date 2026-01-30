@@ -188,26 +188,27 @@ def Map_Data(tahun, provinsi, df):
         geo,
         name="Provinsi",
         style_function=lambda f: {
-            "fillColor": warna(f["properties"].get("jumlah_peserta" , 0)),
-            "color": "black",       # BORDER
-            "weight": 2,
-            "fillOpacity": 0.7
-        },
-        highlight_function=lambda f: {
-            "weight": 4,
-            "color": "blue"
-        },
-        tooltip=folium.GeoJsonTooltip(
-            fields=["Provinsi", "jumlah_peserta", "bidang_unggulan", "bidang_terlemah"],
-            aliases=["Provinsi:", "Total Peserta:", "Bidang Unggulan:", "Bidang Terlemah:"],
-            sticky=True
-        )
+            "fillColor": warna(
+                data_map.get(
+                    f["properties"].get("Provinsi", ""), {}
+                ).get("Jumlah_Peserta", 0)
+            ),
+            "color": "black",
+            "weight": 1,
+            "fillOpacity": 0.6
+        }
     ).add_to(m)
 
     # ================= MARKER NAMA =================
     for _, row in agg.iterrows():
         folium.Marker(
             [row["Latitude"], row["Longitude"]],
+            tooltip=(
+                f"Provinsi: {row['Provinsi']}<br>"
+                f"Peserta: {row['Jumlah_Peserta']}<br>"
+                f"Unggulan: {row['Bidang_Unggulan']}<br>"
+                f"Terlemah: {row['Bidang_Terlemah']}"
+            ),
             icon=folium.DivIcon(
                 html=f"""
                 <div style="
