@@ -176,6 +176,13 @@ def Map_Data(tahun, provinsi, df):
         else:
             return "black"
 
+    #Set Map Size
+    m = folium.Map(location=[-2.5489, 118.0149],
+                    zoom_start=5,
+                    max_zoom=12,
+                    min_zoom=2,
+                    tiles="CartoDB positron")
+    
     #Show Feature to Map
     folium.GeoJson(
         geojson_data,
@@ -213,14 +220,7 @@ def Map_Data(tahun, provinsi, df):
                 """
             )
         ).add_to(m)
-
-    #Set Map Size
-    m = folium.Map(location=[-2.5489, 118.0149],
-                    zoom_start=5,
-                    max_zoom=12,
-                    min_zoom=2,
-                    tiles="CartoDB positron")
-    
+        
     #Render Streamlit
     st.components.v1.html(
     m._repr_html_(),
