@@ -132,7 +132,7 @@ def Map_Data(tahun, provinsi, df):
     agg_data = filter.groupby("Provinsi").size().reset_index(name="Jumlah_Peserta")
 
     # ================= LOAD GEOJSON =================
-    with open("data/indonesia_province.geojson", encoding="utf-8") as f:
+    with open("data/indonesia.geojson", encoding="utf-8") as f:
         geojson_data = json.load(f)
 
     # ================= JOIN DATA =================
