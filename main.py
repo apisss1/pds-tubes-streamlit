@@ -4,7 +4,8 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import folium
-
+import json
+import os
 
 #Set Layout Page
 st.set_page_config(layout='wide' , initial_sidebar_state= 'expanded')
@@ -112,71 +113,119 @@ def Pie_Data(tahun , provinsi , df):
 
 #Map Section
 def Map_Data(tahun, provinsi, df):
-    import json
-
-    # ================= FILTER DATA =================
+    #Filter Data 
     filter = df.copy()
+    t = " - ".join(map(str , tahun))
+    p = " , ".join(provinsi)
 
-    if tahun and print :
-        filter = filter[filter["Tahun"].isin(tahun)] & filter[filter["Provinsi"].isin(provinsi)]
-    elif tahun:
-        filter = filter[filter["Tahun"].isin(tahun)]
-    elif provinsi:
-        filter = filter[filter["Provinsi"].isin(provinsi)]
-
+    if tahun and provinsi :
+        filter = filter [(filter["Tahun"].isin(tahun)) & (filter["Provinsi"].isin(provinsi))]
+        st.success(f"Data dari Provinsi {p} Tahun {t}")
+    elif tahun : 
+        filter = filter [(filter["Tahun"].isin(tahun))]
+        st.success(f"Data Tahun {t}")
+    elif provinsi :
+        filter = filter [(filter["Provinsi"].isin(provinsi))]
+        st.success(f"Data Provinsi {p}")
+        return
+        
+    #Checking Data
     if filter.empty:
         st.warning("Tidak ada data untuk ditampilkan di peta.")
         return
 
-    # ================= AGREGASI =================
-    agg_data = filter.groupby("Provinsi").size().reset_index(name="Jumlah_Peserta")
+    # Agregasi Data 
+    agg_data = filter.groupby("Provinsi").agg(
+        Jumlah_Peserta=("Provinsi", "count"),
+        Bidang_Unggulan=("Bidang", lambda x: x.mode().iloc()[0]),
+        Bidang_Terlemah=("Bidang", lambda x: x.value_counts().idxmin()),
+        Latitude=("Latitude", "first"),
+        Longitude=("Longitude", "first")
+    ).reset_index()
+    
+    features = []
 
-    # ================= LOAD GEOJSON =================
-    with open("data/indonesia.geojson", encoding="utf-8") as f:
-        geojson_data = json.load(f)
+    for _, row in agg_data.iterrows():
+        #Information Feature
+        features.append({
+            "type": "Feature",
+            "properties": {
+                "Provinsi": row["Provinsi"],
+                "jumlah_peserta": int(row["Jumlah_Peserta"]),
+                "bidang_unggulan": row["Bidang_Unggulan"],
+                "bidang_terlemah": row["Bidang_Terlemah"]
+            },
+            "geometry": {
+                "type": "Point",
+                "coordinates": [row["Longitude"], row["Latitude"]]
+            }
+        })
 
-    # ================= JOIN DATA =================
-    peserta_map = dict(zip(agg_data["Provinsi"], agg_data["Jumlah_Peserta"]))
+    #GeoJSON Data
+    geojson_data = {
+        "type": "FeatureCollection",
+        "features": features
+    }
 
-    def get_jumlah(feature):
-        nama = feature["properties"]["NAME_1"]
-        return peserta_map.get(nama, 0)
-
-    def style_function(feature):
-        jumlah = get_jumlah(feature)
+    #Map Colorbox
+    def color(jumlah):
         if jumlah >= 100:
-            warna = "red"
+            return "red"
         elif jumlah >= 50:
-            warna = "orange"
-        elif jumlah > 0:
-            warna = "green"
+            return "orange"
         else:
-            warna = "#dddddd"
+            return "black"
 
-        return {
-            "fillColor": warna,
-            "color": "black",
-            "weight": 0.8,
-            "fillOpacity": 0.8
-        }
-
-    # ================= MAP =================
-    m = folium.Map(
-        location=[-2.5489, 118.0149],
-        zoom_start=5,
-        tiles="CartoDB positron"
-    )
-
+    #Set Map Size
+    m = folium.Map(location=[-2.5489, 118.0149],
+                    zoom_start=5,
+                    max_zoom=12,
+                    min_zoom=2,
+                    tiles="CartoDB positron")
+    
+    #Show Feature to Map
     folium.GeoJson(
         geojson_data,
-        style_function=style_function,
+        style_function=lambda feature: {
+        "fillColor": color(feature["properties"]["jumlah_peserta"]),
+        "color": color(feature["properties"]["jumlah_peserta"]),
+        "weight": 1,
+        "fillOpacity": 0.8,
+        "radius": 8
+        },
         tooltip=folium.GeoJsonTooltip(
-            fields=["NAME_1"],
-            aliases=["Provinsi:"]
+            fields=["Provinsi", "jumlah_peserta", "bidang_unggulan", "bidang_terlemah"],
+            aliases=["Provinsi:", "Total Peserta:", "Bidang Unggulan:", "Bidang Terlemah:"]
         )
     ).add_to(m)
 
-    st.components.v1.html(m._repr_html_(), height=550)
+    # Marker Section
+    for feature in geojson_data["features"]:
+        lon, lat = feature["geometry"]["coordinates"]
+        nama = feature["properties"]["Provinsi"]
+
+        folium.Marker(
+            location=[lat, lon],
+            icon=folium.DivIcon(
+                html=f"""
+                <div style="
+                    font-size: 9px;
+                    font-weight: bold;
+                    color: black;
+                    text-align: center;
+                    text-shadow: 1px 1px 2px white;
+                ">
+                    {nama}
+                </div>
+                """
+            )
+        ).add_to(m)
+        
+    #Render Streamlit
+    st.components.v1.html(
+    m._repr_html_(),
+    height=550,
+    scrolling=False)
 
 #Main Program 
 st.subheader("Data Siswa OSN")
