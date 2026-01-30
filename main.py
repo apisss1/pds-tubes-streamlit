@@ -127,14 +127,17 @@ def Map_Data(tahun, provinsi, df):
     elif provinsi :
         filter = filter [(filter["Provinsi"].isin(provinsi))]
         st.success(f"Data Provinsi {p}")
-    else :
+        return
+        
+    #Checking Data
+    if filter.empty:
         st.warning("Tidak ada data untuk ditampilkan di peta.")
         return
-    
+
     # Agregasi Data 
     agg_data = filter.groupby("Provinsi").agg(
         Jumlah_Peserta=("Provinsi", "count"),
-        Bidang_Unggulan=("Bidang", lambda x: x.mode()[0]),
+        Bidang_Unggulan=("Bidang", lambda x: x.mode().iloc()[0]),
         Bidang_Terlemah=("Bidang", lambda x: x.value_counts().idxmin()),
         Latitude=("Latitude", "first"),
         Longitude=("Longitude", "first")
@@ -223,7 +226,6 @@ def Map_Data(tahun, provinsi, df):
     m._repr_html_(),
     height=550,
     scrolling=False)
-
 
 #Main Program 
 st.subheader("Data Siswa OSN")
