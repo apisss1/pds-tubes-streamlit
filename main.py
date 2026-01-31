@@ -111,126 +111,80 @@ def Pie_Data(tahun , provinsi , df):
     st.pyplot(fig2)
     plt.close(fig2)
 
-#Map Section
+# Map Section
 def Map_Data(tahun, provinsi, df):
-    #Filter Data 
-    filter = df.copy()
-    t = " - ".join(map(str , tahun))
+    t = " - ".join(map(str, tahun))
     p = " , ".join(provinsi)
+    # Filtering data
+    data_filter = df.copy()
 
-    #Selection Data
-    if tahun and provinsi :
-        filter = filter [(filter["Tahun"].isin(tahun)) & (filter["Provinsi"].isin(provinsi))]
+    if tahun and provinsi:
+        data_filter = data_filter[(data_filter["Tahun"].isin(tahun)) & (data_filter["Provinsi"].isin(provinsi))]
         st.success(f"Data dari Provinsi {p} Tahun {t}")
-    elif tahun : 
-        filter = filter [(filter["Tahun"].isin(tahun))]
+    elif tahun:
+        data_filter = data_filter[data_filter["Tahun"].isin(tahun)]
         st.success(f"Data Tahun {t}")
-    elif provinsi :
-        filter = filter [(filter["Provinsi"].isin(provinsi))]
+    elif provinsi:
+        data_filter = data_filter[data_filter["Provinsi"].isin(provinsi)]
         st.success(f"Data Provinsi {p}")
-        return
-        
+
     #Checking Data
-    if filter.empty:
+    if data_filter.empty:
         st.warning("Tidak ada data untuk ditampilkan di peta.")
         return
 
-    # Agregasi Data 
-    agg = filter.groupby("Provinsi").agg(
+    # Aggregasi Data
+    agg_data = data_filter.groupby("Provinsi").agg(
         Jumlah_Peserta=("Provinsi", "count"),
-        Bidang_Unggulan=("Bidang", lambda x: x.mode().iloc()[0]),
+        Bidang_Unggulan=("Bidang", lambda x: x.mode()[0]),
         Bidang_Terlemah=("Bidang", lambda x: x.value_counts().idxmin()),
         Latitude=("Latitude", "first"),
         Longitude=("Longitude", "first")
     ).reset_index()
-    
-    data_map = agg.set_index("Provinsi").to_dict("index")
-    daftar_provinsi = agg["Provinsi"].tolist()
+    agg_data["Jumlah_Peserta"] = agg_data["Jumlah_Peserta"].astype(int)
 
-    # ================= LOAD GEOJSON =================
-    with open("data/indonesia.geojson", encoding="utf-8") as f:
-        geo = json.load(f)
+    # Read geojson
+    with open("data/indonesia.geojson", "r", encoding="utf-8") as f:
+        geo_prov = json.load(f)
 
-    # 🔥 INJECT PROPERTIES DARI CSV
-    for i, feature in enumerate(geo["features"]):
-        prov = daftar_provinsi[i] if i < len(daftar_provinsi) else "Unknown"
-        feature["properties"] = {"Provinsi": prov}
+    # Create Map
+    m = folium.Map(location=[-2.5489, 118.0149], zoom_start=5, tiles="CartoDB positron")
 
-        if prov in data_map:
-            feature["properties"].update(data_map[prov])
-        else:
-            feature["properties"].update({
-                "jumlah_peserta": 0,
-                "bidang_unggulan": "-",
-                "bidang_terlemah": "-"
-            })
-
-    # ================= COLOR FUNCTION =================
-    def warna(jumlah):
-        if jumlah >= 100:
-            return "#1feb0c"
-        elif jumlah >= 50:
-            return "#f0ec0a"
-        elif jumlah > 0:
-            return "#ef0d0d"
-        else:
-            return "#eeeeee"
-
-    # ================= MAP =================
-    m = folium.Map(
-        location=[-2.5489, 118.0149],
-        zoom_start=5,
-        tiles="CartoDB positron"
-    )
-
-    # ================= PROVINSI POLYGON =================
     folium.GeoJson(
-        geo,
-        name="Provinsi",
-        style_function=lambda f: {
-            "fillColor": warna(
-                data_map.get(
-                    f["properties"].get("Provinsi", ""), {}
-                ).get("Jumlah_Peserta", 0)
-            ),
-            "color": "black",
+        geo_prov,
+        style_function=lambda feature: {
+            "fillColor": "green",
+            "color": "black",    
             "weight": 1,
-            "fillOpacity": 0.6
+            "fillOpacity": 1
         }
     ).add_to(m)
 
-    agg["Latitude"] = pd.to_numeric(agg["Latitude"], errors="coerce")
-    agg["Longitude"] = pd.to_numeric(agg["Longitude"], errors="coerce")
-    agg = agg.dropna(subset=["Latitude", "Longitude"])
 
-    # ================= MARKER NAMA =================
-    for _, row in agg.iterrows():
-        folium.Marker(
-            location = [row["Latitude"], row["Longitude"]],
-            tooltip=(
-                f"Provinsi: {row['Provinsi']}<br>"
-                f"Peserta: {row['Jumlah_Peserta']}<br>"
-                f"Unggulan: {row['Bidang_Unggulan']}<br>"
-                f"Terlemah: {row['Bidang_Terlemah']}"
-            ),
-            icon=folium.DivIcon(
-                html=f"""
-                <div style="
-                    font-size:9px;
-                    font-weight:bold;
-                    text-shadow:1px 1px 2px white;
-                ">
-                    {row['Provinsi']}
-                </div>
-                """
-            )
-        ).add_to(m)
-        
-    #Render Streamlit
+    # Circle Marker
+    for _, row in agg_data.iterrows():
+        if pd.notna(row["Latitude"]) and pd.notna(row["Longitude"]):
+            folium.CircleMarker(
+                location=[row["Latitude"], row["Longitude"]],
+                radius=6,
+                color="black",
+                fill=True,
+                fill_color="yellow",
+                fill_opacity=1,
+                tooltip=(
+                    f"Provinsi: {row['Provinsi']}<br>"
+                    f"Jumlah Peserta: {row['Jumlah_Peserta']}<br>"
+                    f"Bidang Unggulan: {row['Bidang_Unggulan']}<br>"
+                    f"Bidang Terlemah: {row['Bidang_Terlemah']}"
+                )
+            ).add_to(m)
+
+    #Rendering Streamlit Cloud
     st.components.v1.html(
-    m._repr_html_(),
-    height=550,
-    scrolling=False)
+        m._repr_html_(),
+        height=550,
+        scrolling=False
+    )
 
 #Main Program 
 st.subheader("Data Siswa OSN")
