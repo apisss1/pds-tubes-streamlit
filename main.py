@@ -15,7 +15,6 @@ st.title("Dashboard Analisis Data OSN SMA Tahun 2022 - 2024")
 
 #Read Data Function
 df = pd.read_csv("data/osn_fiks.csv")
-df["Tahun"] = pd.to_numeric(df["Tahun"], errors="coerce").astype("Int64")
 
 #Column section
 col1, col2, col3 = st.columns(3)
@@ -37,6 +36,7 @@ provinsi = st.sidebar.multiselect(
 #Table Data Section
 def Table_Data(tahun , provinsi , df):
     filter = df
+    filter["Tahun"] = filter["Tahun"].astype(int)
     t = " - ".join(map(str , tahun))
     p = " , ".join(provinsi)
 
