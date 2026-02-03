@@ -14,9 +14,7 @@ st.set_page_config(layout='wide' , initial_sidebar_state= 'expanded')
 st.title("Dashboard Analisis Data OSN SMA Tahun 2022 - 2024")
 
 #Read Data Function
-def load_data():
-    return pd.read_csv("data/osn_fiks.csv")
-df = load_data()
+df = pd.read_csv("data/osn_fiks.csv")
 
 #Column section
 col1, col2, col3 = st.columns(3)
@@ -153,24 +151,57 @@ def Map_Data(tahun, provinsi, df):
     folium.GeoJson(
         geo_prov,
         style_function=lambda feature: {
-            "fillColor": "green",
+            "fillColor": "#2984EC",
             "color": "black",    
             "weight": 1,
             "fillOpacity": 1
         }
     ).add_to(m)
 
-
-    # Circle Marker
     for _, row in agg_data.iterrows():
         if pd.notna(row["Latitude"]) and pd.notna(row["Longitude"]):
-            folium.CircleMarker(
+
+            folium.Marker(
                 location=[row["Latitude"], row["Longitude"]],
-                radius=6,
-                color="black",
-                fill=True,
-                fill_color="yellow",
-                fill_opacity=1,
+                icon=folium.DivIcon(
+                    html=f"""
+                    <div style="
+                        position: relative;
+                        transform: translate(-50%, -100%);
+                    ">
+                        <!-- Marker -->
+                        <div style="
+                            width:18px;
+                            height:18px;
+                            background:#191960;
+                            border-radius:50% 50% 50% 0;
+                            transform: rotate(-45deg);
+                            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+                        "></div>
+                        <!-- Inner Marker -->
+                        <div style="
+                            position:absolute;
+                            top:4px;
+                            left:5px;
+                            width:10px;
+                            height:10px;
+                            background:white;
+                            border-radius:50%;
+                        "></div>
+                        <!-- Text Label -->
+                        <div style="
+                            margin-top:6px;
+                            text-align:center;
+                            font-size:10px;
+                            font-weight:bold;
+                            color:black;
+                            white-space:nowrap;
+                        ">
+                            {row['Provinsi']}
+                        </div>
+                    </div>
+                    """
+                ),
                 tooltip=(
                     f"Provinsi: {row['Provinsi']}<br>"
                     f"Jumlah Peserta: {row['Jumlah_Peserta']}<br>"
@@ -178,7 +209,7 @@ def Map_Data(tahun, provinsi, df):
                     f"Bidang Terlemah: {row['Bidang_Terlemah']}"
                 )
             ).add_to(m)
-
+    
     #Rendering Streamlit Cloud
     st.components.v1.html(
         m._repr_html_(),
