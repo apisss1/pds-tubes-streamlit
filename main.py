@@ -35,6 +35,7 @@ provinsi = st.sidebar.multiselect(
 
 #Table Data Section
 def Table_Data(tahun , provinsi , df):
+    df["Tahun"] = df["Tahun"].astype(int)
     filter = df
     t = " - ".join(map(str , tahun))
     p = " , ".join(provinsi)
