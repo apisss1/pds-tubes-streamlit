@@ -5,7 +5,6 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import folium
 import json
-import os
 
 #Set Layout Page
 st.set_page_config(layout='wide' , initial_sidebar_state= 'expanded')
@@ -14,7 +13,7 @@ st.set_page_config(layout='wide' , initial_sidebar_state= 'expanded')
 st.title("Dashboard Analisis Data OSN SMA Tahun 2022 - 2024")
 
 #Read Data Function
-df = pd.read_csv("data/osn_fiks.csv")
+df = pd.read_csv("data/cari_longlat/data_osn_fiks_banget.csv")
 
 #Column section
 col1, col2, col3 = st.columns(3)
