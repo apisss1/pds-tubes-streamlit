@@ -142,7 +142,7 @@ def Map_Data(tahun, provinsi, df):
     agg_data["Jumlah_Peserta"] = agg_data["Jumlah_Peserta"].astype(int)
 
     # Read geojson
-    with open("data/indonesia.geojson", "r", encoding="utf-8") as f:
+    with open("data/cari_longlat/indonesia.geojson", "r", encoding="utf-8") as f:
         geo_prov = json.load(f)
 
     # Create Map
